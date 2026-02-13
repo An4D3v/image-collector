@@ -24,7 +24,7 @@ def main():
     downloader = Downloader()
     drive = DriveService()
 
-    # 1️⃣ Buscar URLs
+    # Busca URLs
     log("Buscando imagens na API...")
     urls = search.buscar_imagens(query_limpa, quantidade)
 
@@ -32,10 +32,10 @@ def main():
         log("Nenhuma imagem encontrada.")
         return
 
-    # 2️⃣ Criar pasta temporária
+    # Cria pasta temporária
     pasta_local = criar_pasta_temporaria(query_limpa)
 
-    # 3️⃣ Baixar imagens
+    # Baixa imagens
     log("Baixando imagens...")
     arquivos = downloader.baixar_imagens(urls, pasta_local)
 
@@ -43,17 +43,17 @@ def main():
         log("Falha no download das imagens.")
         return
 
-    # 4️⃣ Criar pasta no Drive
+    # Cria pasta no Drive
     nome_pasta_drive = gerar_nome_pasta(query_limpa)
     log("Criando pasta no Drive...")
     pasta_id = drive.criar_pasta(nome_pasta_drive)
 
-    # 5️⃣ Upload
+    # Upload
     log("Enviando imagens para o Drive...")
     for arquivo in arquivos:
         drive.upload_arquivo(arquivo, pasta_id)
 
-    # 6️⃣ Limpar pasta temporária
+    # Limpa pasta temporária
     limpar_pasta(pasta_local)
 
     log("Processo finalizado com sucesso 🚀")
