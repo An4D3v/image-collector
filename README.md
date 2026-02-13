@@ -1,5 +1,9 @@
 # Image Collector 🚀
 
+## 🎬 Demonstração
+
+![Demonstração do projeto](demo.gif)
+
 Aplicação em Python que integra APIs externas para buscar imagens por
 palavra-chave e organizá-las automaticamente no Google Drive.
 
