@@ -2,7 +2,9 @@
 
 ## 🎬 Demonstração
 
-![Demonstração do projeto](demo.gif)
+<p align="center">
+  <img src="demo.gif" alt="Demonstração do projeto" width="700">
+</p>
 
 Aplicação em Python que integra APIs externas para buscar imagens por
 palavra-chave e organizá-las automaticamente no Google Drive.
