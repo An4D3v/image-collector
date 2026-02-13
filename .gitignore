@@ -1,0 +1,17 @@
+.env
+
+oauth_credentials.json
+token.json
+
+venv/
+
+__pycache__/
+*.pyc
+*.pyo
+
+temp_*/
+
+*.log
+
+.DS_Store
+Thumbs.db
