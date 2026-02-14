@@ -1,7 +1,8 @@
 from search_service import SearchService
 from downloader import Downloader
 from drive_service import DriveService
-from utils import limpar_pasta, sanitizar_nome, criar_pasta_temporaria, gerar_nome_pasta, log
+from database import Database
+from utils import criar_pasta_temporaria, limpar_pasta, sanitizar_nome, log
 
 
 def main():
@@ -23,40 +24,48 @@ def main():
     search = SearchService()
     downloader = Downloader()
     drive = DriveService()
+    db = Database()
 
-    # Busca URLs
-    log("Buscando imagens na API...")
-    urls = search.buscar_imagens(query_limpa, quantidade)
+    try:
+        # 🔎 1️⃣ Buscar imagens
+        log("Buscando imagens na API...")
+        imagens = search.buscar_imagens(query_limpa, quantidade)
 
-    if not urls:
-        log("Nenhuma imagem encontrada.")
-        return
+        if not imagens:
+            log("Nenhuma imagem encontrada.")
+            return
 
-    # Cria pasta temporária
-    pasta_local = criar_pasta_temporaria(query_limpa)
+        # 📂 2️⃣ Criar pasta local temporária
+        pasta_local = criar_pasta_temporaria(query_limpa)
 
-    # Baixa imagens
-    log("Baixando imagens...")
-    arquivos = downloader.baixar_imagens(urls, pasta_local)
+        # ⬇ 3️⃣ Baixar imagens
+        log("Baixando imagens...")
+        resultados = downloader.baixar_imagens(imagens, pasta_local)
 
-    if not arquivos:
-        log("Falha no download das imagens.")
-        return
+        # ☁ 4️⃣ Criar ou reutilizar pasta no Drive
+        log("Criando ou reutilizando pasta no Drive...")
+        pasta_id = drive.criar_pasta(query_limpa)
 
-    # Cria pasta no Drive
-    nome_pasta_drive = gerar_nome_pasta(query_limpa)
-    log("Criando pasta no Drive...")
-    pasta_id = drive.criar_pasta(nome_pasta_drive)
+        # 🔁 5️⃣ Processar cada imagem
+        for item in resultados:
+            if item["status"] == "success":
 
-    # Upload
-    log("Enviando imagens para o Drive...")
-    for arquivo in arquivos:
-        drive.upload_arquivo(arquivo, pasta_id)
+                # 💾 Salvar ou atualizar no banco
+                db.inserir_imagem(item)
 
-    # Limpa pasta temporária
-    limpar_pasta(pasta_local)
+                # ⬆ Upload (cria ou substitui)
+                drive.upload_arquivo(item["file_path"], pasta_id)
 
-    log("Processo finalizado com sucesso 🚀")
+        # 🧹 6️⃣ Limpar pasta local
+        limpar_pasta(pasta_local)
+
+        log("Processo finalizado com sucesso 🚀")
+
+    except Exception as e:
+        log(f"Erro inesperado no fluxo principal: {e}")
+
+    finally:
+        db.fechar()
 
 
 if __name__ == "__main__":

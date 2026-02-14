@@ -14,11 +14,10 @@ class DriveService:
     def __init__(self):
         creds = None
 
-        # Se já existir token salvo
+        # se já existe token salvo
         if os.path.exists('token.json'):
             creds = Credentials.from_authorized_user_file('token.json', SCOPES)
 
-        # Se não existir ou estiver inválido
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
@@ -28,13 +27,35 @@ class DriveService:
                 )
                 creds = flow.run_local_server(port=0)
 
-            # Salva o token para não pedir login sempre
+            # Salva token para não pedir login sempre
             with open('token.json', 'w') as token:
                 token.write(creds.to_json())
 
         self.service = build('drive', 'v3', credentials=creds)
 
+    # cria ou reutiliza pasta
     def criar_pasta(self, nome):
+
+        query = (
+            f"name='{nome}' "
+            f"and mimeType='application/vnd.google-apps.folder' "
+            f"and '{GOOGLE_DRIVE_ROOT_FOLDER_ID}' in parents "
+            f"and trashed=false"
+        )
+
+        results = self.service.files().list(
+            q=query,
+            spaces='drive',
+            fields='files(id, name)'
+        ).execute()
+
+        files = results.get('files', [])
+
+        if files:
+            print("Pasta já existe. Reutilizando.")
+            return files[0]['id']
+
+        # cria nova pasta
         file_metadata = {
             'name': nome,
             'mimeType': 'application/vnd.google-apps.folder',
@@ -46,18 +67,50 @@ class DriveService:
             fields='id'
         ).execute()
 
+        print("Nova pasta criada.")
         return folder.get('id')
-
+    
+    # upload ou atualização do arquivo
     def upload_arquivo(self, caminho_arquivo, pasta_id):
-        file_metadata = {
-            'name': os.path.basename(caminho_arquivo),
-            'parents': [pasta_id]
-        }
 
-        media = MediaFileUpload(caminho_arquivo)
+        nome_arquivo = os.path.basename(caminho_arquivo)
 
-        self.service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id'
+        query = (
+            f"name='{nome_arquivo}' "
+            f"and '{pasta_id}' in parents "
+            f"and trashed=false"
+        )
+
+        results = self.service.files().list(
+            q=query,
+            spaces='drive',
+            fields='files(id, name)'
         ).execute()
+
+        files = results.get('files', [])
+
+        media = MediaFileUpload(caminho_arquivo, resumable=True)
+
+        if files:
+            # atualiza arquivo existente
+            file_id = files[0]['id']
+            self.service.files().update(
+                fileId=file_id,
+                media_body=media
+            ).execute()
+            print(f"Arquivo atualizado: {nome_arquivo}")
+
+        else:
+            # cria novo arquivo
+            file_metadata = {
+                'name': nome_arquivo,
+                'parents': [pasta_id]
+            }
+
+            self.service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id'
+            ).execute()
+
+            print(f"Arquivo criado: {nome_arquivo}")

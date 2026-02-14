@@ -1,27 +1,40 @@
 import requests
-from config import UNSPLASH_ACCESS_KEY
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class SearchService:
 
-    BASE_URL = "https://api.unsplash.com/search/photos"
+    def __init__(self):
+        self.base_url = "https://api.unsplash.com/search/photos"
+        self.access_key = os.getenv("UNSPLASH_ACCESS_KEY")
 
-    def buscar_imagens(self, query, quantidade=5):
-        headers = {
-            "Authorization": f"Client-ID {UNSPLASH_ACCESS_KEY}"
-        }
+    def buscar_imagens(self, query, quantidade):
 
-        params = {
-            "query": query,
-            "per_page": quantidade
-        }
+        response = requests.get(
+            self.base_url,
+            params={
+                "query": query,
+                "per_page": quantidade,
+                "client_id": self.access_key
+            }
+        )
+ 
+        if response.status_code != 200:
+            print("Erro na API:", response.json())
+            return []
 
-        response = requests.get(self.BASE_URL, headers=headers, params=params)
-        data = response.json()
+        dados = response.json()["results"]
 
         imagens = []
 
-        for item in data.get("results", []):
-            imagens.append(item["urls"]["regular"])
+        for item in dados:
+            imagens.append({
+                "id": item["id"],
+                "url": item["urls"]["regular"],
+                "description": item.get("alt_description")
+            })
 
         return imagens
