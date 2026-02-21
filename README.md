@@ -2,13 +2,8 @@
 
 ## 🎬 Demonstração
 
-```{=html}
-<p align="center">
-```
-`<img src="demo.gif" alt="Demonstração do projeto" width="700">`{=html}
-```{=html}
-</p>
-```
+<p align="center"> <img src="demo.gif" alt="Demonstração do projeto" width="700"> </p>
+
 Aplicação em Python que integra APIs externas para buscar imagens por
 palavra-chave, armazená-las no Google Drive e manter consistência entre
 banco de dados e nuvem.
