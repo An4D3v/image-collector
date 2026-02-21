@@ -1,8 +1,9 @@
-from search_service import SearchService
-from downloader import Downloader
-from drive_service import DriveService
-from database import Database
-from utils import criar_pasta_temporaria, limpar_pasta, sanitizar_nome, log
+from services.search_service import SearchService
+from services.downloader import Downloader
+from services.drive_service import DriveService
+from core.database import Database
+from core.integrity_check import run_integrity_check
+from utils.utils import criar_pasta_temporaria, limpar_pasta, sanitizar_nome, log
 
 
 def main():
@@ -27,7 +28,6 @@ def main():
     db = Database()
 
     try:
-        # 🔎 1️⃣ Buscar imagens
         log("Buscando imagens na API...")
         imagens = search.buscar_imagens(query_limpa, quantidade)
 
@@ -35,31 +35,31 @@ def main():
             log("Nenhuma imagem encontrada.")
             return
 
-        # 📂 2️⃣ Criar pasta local temporária
         pasta_local = criar_pasta_temporaria(query_limpa)
 
-        # ⬇ 3️⃣ Baixar imagens
         log("Baixando imagens...")
         resultados = downloader.baixar_imagens(imagens, pasta_local)
 
-        # ☁ 4️⃣ Criar ou reutilizar pasta no Drive
         log("Criando ou reutilizando pasta no Drive...")
         pasta_id = drive.criar_pasta(query_limpa)
+        modo = input("Deseja rodar verificação de integridade antes do processamento? (s/n): ")
 
-        # 🔁 5️⃣ Processar cada imagem
+        if modo.lower().strip() == "s":
+            run_integrity_check(pasta_id, query_limpa)
+
         for item in resultados:
             if item["status"] == "success":
 
-                # 💾 Salvar ou atualizar no banco
+                item["folder_name"] = query_limpa
+
+                drive.upload_arquivo(item["file_path"], pasta_id)
                 db.inserir_imagem(item)
 
-                # ⬆ Upload (cria ou substitui)
-                drive.upload_arquivo(item["file_path"], pasta_id)
 
-        # 🧹 6️⃣ Limpar pasta local
         limpar_pasta(pasta_local)
 
         log("Processo finalizado com sucesso 🚀")
+
 
     except Exception as e:
         log(f"Erro inesperado no fluxo principal: {e}")

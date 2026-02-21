@@ -2,32 +2,48 @@
 
 ## 🎬 Demonstração
 
+```{=html}
 <p align="center">
-  <img src="demo.gif" alt="Demonstração do projeto" width="700">
+```
+`<img src="demo.gif" alt="Demonstração do projeto" width="700">`{=html}
+```{=html}
 </p>
-
+```
 Aplicação em Python que integra APIs externas para buscar imagens por
-palavra-chave e organizá-las automaticamente no Google Drive.
+palavra-chave, armazená-las no Google Drive e manter consistência entre
+banco de dados e nuvem.
 
-Este projeto foi desenvolvido com foco em prática de integração de APIs,
-autenticação segura (OAuth 2.0) e organização modular de código.
+Este projeto evoluiu de uma simples integração com API para um sistema
+com:
+
+-   Persistência em banco relacional
+-   UPSERT com PostgreSQL
+-   Soft delete
+-   Verificação de integridade entre sistemas
+-   Organização modular de código
 
 ------------------------------------------------------------------------
 
 ## 🔎 Funcionalidades
 
--   🔍 Busca imagens por palavra-chave via API do Unsplash
--   ⬇️ Download automático das imagens
--   📂 Criação dinâmica de pastas no Google Drive
--   ☁️ Upload automatizado via Google Drive API
+-   🔍 Busca imagens por palavra-chave via API do Unsplash\
+-   ⬇️ Download automático das imagens\
+-   📂 Criação dinâmica de pastas no Google Drive\
+-   ☁️ Upload automatizado via Google Drive API\
+-   🗄 Persistência em PostgreSQL\
+-   🔁 UPSERT (INSERT ou UPDATE automático)\
+-   🗑 Soft delete com controle via `deleted_at`\
+-   🔎 Verificação opcional de integridade entre banco e Drive\
+-   🧹 Limpeza automática de arquivos temporários\
 -   🔐 Autenticação segura utilizando OAuth 2.0
--   🧹 Limpeza automática de arquivos temporários
 
 ------------------------------------------------------------------------
 
 ## 🧠 Tecnologias Utilizadas
 
 -   Python 3
+-   PostgreSQL
+-   psycopg2
 -   Requests
 -   Google Drive API
 -   OAuth 2.0
@@ -38,118 +54,202 @@ autenticação segura (OAuth 2.0) e organização modular de código.
 
 ## ⚙️ Como Funciona
 
+### Fluxo Principal
+
 1.  O usuário informa uma palavra-chave e a quantidade de imagens.
 2.  A aplicação consulta a API do Unsplash.
 3.  As imagens são baixadas temporariamente.
-4.  Uma nova pasta é criada automaticamente no Google Drive.
-5.  As imagens são enviadas para essa pasta.
-6.  A pasta local temporária é removida ao final do processo.
-
-Fluxo resumido:
-
-Input do usuário\
-↓\
-Unsplash API\
-↓\
-Download local\
-↓\
-Google Drive API (OAuth)\
-↓\
-Organização na nuvem\
-↓\
-Limpeza de arquivos temporários
+4.  Uma pasta é criada (ou reutilizada) no Google Drive.
+5.  O sistema pode executar uma verificação de integridade opcional.
+6.  As imagens são enviadas ao Drive.
+7.  Os registros são persistidos no banco usando UPSERT.
+8.  A pasta temporária local é removida.
 
 ------------------------------------------------------------------------
 
-## 🔐 Autenticação
+## 🔁 Persistência Inteligente (UPSERT)
 
-O acesso ao Google Drive é feito utilizando OAuth 2.0.
+O sistema utiliza:
 
-Isso significa que:
+    INSERT ... ON CONFLICT (unsplash_id) DO UPDATE
 
--   Nenhuma senha é armazenada no código
--   Cada usuário autoriza o acesso com sua própria conta Google
--   Tokens são gerados localmente (token.json)
--   O projeto segue boas práticas de segurança
+Isso garante:
+
+-   Nenhuma duplicação de imagens
+-   Atualização automática quando necessário
+-   Idempotência do processo
+
+------------------------------------------------------------------------
+
+## 🗑 Soft Delete
+
+O banco utiliza a coluna:
+
+    deleted_at TIMESTAMP NULL
+
+Se uma imagem for marcada como removida, o registro não é apagado,
+apenas recebe timestamp em `deleted_at`.
+
+------------------------------------------------------------------------
+
+## 🔎 Verificação de Integridade
+
+Antes da sincronização, o usuário pode optar por rodar uma verificação:
+
+-   Compara imagens do banco com arquivos no Drive
+-   Detecta inconsistências
+-   Exibe relatório
+-   Permite confirmar atualização de `deleted_at`
+
+------------------------------------------------------------------------
+
+## 🗄 Banco de Dados
+
+Tabela principal:
+
+    CREATE TABLE images (
+        unsplash_id TEXT PRIMARY KEY,
+        description TEXT,
+        image_url TEXT NOT NULL,
+        file_name TEXT,
+        file_size INTEGER,
+        folder_name TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        deleted_at TIMESTAMP NULL
+    );
 
 ------------------------------------------------------------------------
 
 ## 📦 Estrutura do Projeto
 
-image-collector/ │ ├── app.py \# Orquestração principal ├──
-search_service.py \# Integração com Unsplash API ├── drive_service.py \#
-Integração com Google Drive API ├── downloader.py \# Download das
-imagens ├── utils.py \# Funções auxiliares ├── config.py \#
-Configurações e variáveis de ambiente ├── requirements.txt ├── .env └──
-README.md
+    image-collector/
+    │
+    ├── app.py
+    │
+    ├── core/
+    │   ├── database.py
+    │   └── integrity_check.py
+    │
+    ├── services/
+    │   ├── search_service.py
+    │   ├── downloader.py
+    │   └── drive_service.py
+    │
+    ├── config/
+    │   └── config.py
+    │
+    ├── utils/
+    │   └── utils.py
+    │
+    ├── requirements.txt
+    ├── .env
+    └── README.md
+
+Organização por responsabilidade:
+
+-   **core/** → lógica interna do sistema (banco e verificação)
+-   **services/** → integrações externas (APIs e download)
+-   **config/** → configurações e variáveis de ambiente
+-   **utils/** → funções auxiliares
 
 ------------------------------------------------------------------------
 
-## 🚀 Como Executar o Projeto
+## 🚀 Como Executar
 
 ### 1️⃣ Clone o repositório
 
-git clone https://github.com/seu-usuario/image-collector.git\
-cd image-collector
+    git clone https://github.com/seu-usuario/image-collector.git
+    cd image-collector
 
 ### 2️⃣ Crie e ative o ambiente virtual
 
 Windows:
 
-python -m venv venv\
-venv`\Scripts`{=tex}`\activate`{=tex}
+    python -m venv venv
+    venv\Scripts\activate
 
 Mac/Linux:
 
-python3 -m venv venv\
-source venv/bin/activate
+    python3 -m venv venv
+    source venv/bin/activate
 
 ### 3️⃣ Instale as dependências
 
-pip install -r requirements.txt
+    pip install -r requirements.txt
 
 ### 4️⃣ Configure o arquivo `.env`
 
-Crie um arquivo `.env` com:
+    UNSPLASH_ACCESS_KEY=sua_access_key
+    GOOGLE_DRIVE_ROOT_FOLDER_ID=id_da_pasta_root
+    DB_HOST=localhost
+    DB_PORT=5432
+    DB_NAME=image_collector
+    DB_USER=postgres
+    DB_PASSWORD=sua_senha
 
-UNSPLASH_ACCESS_KEY=sua_access_key_aqui\
-GOOGLE_DRIVE_ROOT_FOLDER_ID=id_da_pasta_ImageCollector
+Também adicione:
 
-Também adicione o arquivo oauth_credentials.json na raiz do projeto
-(obtido no Google Cloud Console).
+    oauth_credentials.json
+
+na raiz do projeto.
 
 ------------------------------------------------------------------------
 
 ### 5️⃣ Execute
 
-python app.py
+    python app.py
 
 ------------------------------------------------------------------------
 
-## 📌 Observações Importantes
+## 🔐 Segurança
 
--   O projeto utiliza autenticação OAuth 2.0.
--   O arquivo token.json será criado automaticamente após o primeiro
-    login.
--   Não compartilhe arquivos de credenciais no GitHub.
+-   OAuth 2.0 para Google Drive
+-   Nenhuma senha hardcoded
+-   Variáveis sensíveis via `.env`
+-   Token salvo localmente (`token.json`)
 
-Recomenda-se adicionar ao `.gitignore`:
+Adicionar ao `.gitignore`:
 
-.env\
-oauth_credentials.json\
-token.json\
-venv/\
-**pycache**/
+    .env
+    oauth_credentials.json
+    token.json
+    venv/
+    __pycache__/
 
 ------------------------------------------------------------------------
 
-## 💡 Possíveis Evoluções
+## 📌 Evolução Técnica do Projeto
 
--   Interface gráfica com Streamlit
--   Barra de progresso para uploads
+Este projeto evoluiu de:
+
+-   Script simples de integração\
+    para\
+-   Sistema com persistência e controle de conflito\
+    para\
+-   Aplicação com sincronização entre sistemas
+
+Conceitos aplicados:
+
+-   Idempotência
+-   UPSERT
+-   Integridade referencial
+-   Soft delete
+-   Separação de responsabilidades
+-   Organização modular
+
+------------------------------------------------------------------------
+
+## 💡 Próximas Evoluções Possíveis
+
+-   Testes automatizados
 -   Logs estruturados
--   Armazenamento de metadados das imagens
--   Deploy como aplicação web
+-   CLI com argumentos
+-   Docker
+-   API com FastAPI
+-   Interface web
+-   Métricas de execução
+-   Deploy em nuvem
 
 ------------------------------------------------------------------------
 
@@ -158,12 +258,13 @@ venv/\
 Praticar:
 
 -   Integração com APIs REST
--   Autenticação segura com OAuth 2.0
--   Organização modular de código
--   Automação de processos
--   Manipulação de arquivos e armazenamento em nuvem
+-   Autenticação OAuth 2.0
+-   Banco relacional com PostgreSQL
+-   Controle de conflito com UPSERT
+-   Sincronização entre sistemas
+-   Organização e evolução arquitetural
 
 ------------------------------------------------------------------------
 
-Desenvolvido como projeto pessoal para aprimoramento técnico e prática
-de integrações entre serviços externos.
+Projeto pessoal desenvolvido para evolução técnica contínua e prática de
+engenharia de software aplicada.

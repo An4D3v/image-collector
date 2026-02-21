@@ -4,7 +4,7 @@ from googleapiclient.http import MediaFileUpload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from config import GOOGLE_DRIVE_ROOT_FOLDER_ID
+from config.config import GOOGLE_DRIVE_ROOT_FOLDER_ID
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
@@ -114,3 +114,15 @@ class DriveService:
             ).execute()
 
             print(f"Arquivo criado: {nome_arquivo}")
+
+    def listar_arquivos_da_pasta(self, pasta_id):
+
+        resultados = self.service.files().list(
+            q=f"'{pasta_id}' in parents and trashed=false",
+            spaces='drive',
+            fields='files(name)'
+        ).execute()
+
+        arquivos = resultados.get('files', [])
+
+        return [arquivo['name'] for arquivo in arquivos]
